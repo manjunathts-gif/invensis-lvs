@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invensis — LVS CRUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ══════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════ */
+:root {
+  --bg:       #f0f4f8;
+  --surface:  #ffffff;
+  --surface2: #f7fafc;
+  --border:   #e2e8f0;
+  --navy:     #0f2345;
+  --navy2:    #1a3a6b;
+  --sky:      #2563eb;
+  --sky-lt:   #dbeafe;
+  --teal:     #0891b2;
+  --green:    #059669;
+  --green-lt: #d1fae5;
+  --amber:    #d97706;
+  --amber-lt: #fef3c7;
+  --rose:     #e11d48;
+  --rose-lt:  #ffe4e6;
+  --purple:   #7c3aed;
+  --text:     #0f172a;
+  --text-dim: #475569;
+  --text-mut: #94a3b8;
+  --radius:   14px;
+  --radius-sm:9px;
+  --shadow:   0 2px 12px rgba(30,60,100,.07);
+  --shadow-lg:0 8px 32px rgba(30,60,100,.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ══════════════════════════════════════
+   LOGIN PAGE
+══════════════════════════════════════ */
+#login-page{
+  min-height:100vh;
+  background:linear-gradient(135deg,var(--navy) 0%,#1e4080 50%,#0891b2 100%);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.login-card{
+  background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:420px;
+  box-shadow:0 24px 80px rgba(0,0,0,.25);
+}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo-icon{
+  width:64px;height:64px;background:linear-gradient(135deg,var(--sky),var(--teal));
+  border-radius:16px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:1.8rem;box-shadow:0 8px 24px rgba(37,99,235,.3);margin-bottom:16px;
+}
+.login-title{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--navy)}
+.login-sub{font-size:.85rem;color:var(--text-mut);margin-top:4px}
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:.76rem;font-weight:700;color:var(--text-dim);
+  text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.form-input{
+  width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);
+  font-family:'Nunito',sans-serif;font-size:.95rem;color:var(--text);background:var(--surface2);
+  outline:none;transition:all .2s;
+}
+.form-input:focus{border-color:var(--sky);background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}
+.btn-primary{
+  width:100%;padding:13px;background:linear-gradient(135deg,var(--sky),var(--teal));
+  color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;
+  font-size:.95rem;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 16px rgba(37,99,235,.3);transition:all .2s;margin-top:4px;
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(37,99,235,.4)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.login-err{
+  background:var(--rose-lt);border:1px solid #fca5a5;border-radius:var(--radius-sm);
+  padding:10px 14px;font-size:.84rem;color:#9f1239;margin-top:12px;display:none;
+}
+
+/* ══════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════ */
+#app-page{ min-height:100vh; }
+
+/* ── TOP NAV ── */
+.top-nav{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;height:60px;
+  box-shadow:0 2px 20px rgba(15,35,69,.3);
+  position:sticky;top:0;z-index:200;
+}
+.nav-brand{display:flex;align-items:center;gap:11px}
+.nav-ic{width:36px;height:36px;background:rgba(255,255,255,.12);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;
+  border:1px solid rgba(255,255,255,.15)}
+.nav-title{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;color:#fff}
+.nav-sub{font-size:.62rem;color:#93c5fd;letter-spacing:.05em}
+.nav-right{display:flex;align-items:center;gap:14px}
+.nav-user{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.07);transition:all .2s;
+}
+.nav-user:hover{background:rgba(255,255,255,.14)}
+.nav-avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--sky),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-weight:700;color:#fff;
+}
+.nav-name{font-size:.8rem;color:#fff;font-weight:600}
+.nav-role{font-size:.62rem;color:#93c5fd;text-transform:uppercase}
+.nav-btn{
+  padding:6px 14px;border-radius:7px;border:1px solid rgba(255,255,255,.2);
+  background:transparent;color:rgba(255,255,255,.7);font-size:.8rem;
+  cursor:pointer;transition:all .2s;font-family:'Nunito',sans-serif;
+}
+.nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+
+/* ── MAIN LAYOUT ── */
+.main-layout{display:flex;min-height:calc(100vh - 60px)}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:220px;background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 0;position:sticky;top:60px;height:calc(100vh - 60px);
+  overflow-y:auto;flex-shrink:0;
+}
+.sidebar-section{padding:0 16px 8px;font-size:.62rem;font-weight:700;
+  color:var(--text-mut);text-transform:uppercase;letter-spacing:.1em;margin-top:16px}
+.sidebar-item{
+  display:flex;align-items:center;gap:9px;padding:10px 20px;
+  font-size:.86rem;font-weight:600;color:var(--text-dim);
+  cursor:pointer;transition:all .15s;border-left:3px solid transparent;
+}
+.sidebar-item:hover{background:var(--surface2);color:var(--navy)}
+.sidebar-item.active{
+  background:var(--sky-lt);color:var(--sky);border-left-color:var(--sky);
+}
+.sidebar-item .si-icon{font-size:1rem;width:20px;text-align:center}
+.sidebar-badge{
+  margin-left:auto;background:var(--rose);color:#fff;
+  font-size:.62rem;padding:2px 6px;border-radius:10px;font-family:'DM Mono',monospace;
+}
+
+/* ── CONTENT ── */
+.content-area{flex:1;padding:24px 28px 48px;overflow-x:hidden;min-width:0}
+
+/* ══════════════════════════════════════
+   DASHBOARD PANEL
+══════════════════════════════════════ */
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;
+}
+.panel-title{
+  font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:var(--navy);
+  display:flex;align-items:center;gap:8px;
+}
+.panel-title::before{
+  content:'';display:inline-block;width:4px;height:20px;
+  background:linear-gradient(to bottom,var(--sky),var(--teal));border-radius:2px;
+}
+
+/* ── STAT BANNERS ── */
+.stat-banner{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  border-radius:var(--radius);padding:20px 24px;color:#fff;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;margin-bottom:20px;
+  box-shadow:0 4px 20px rgba(15,35,69,.2);
+}
+.stat-main{display:flex;align-items:center;gap:16px}
+.stat-icon{font-size:2rem}
+.stat-val{font-family:'Syne',sans-serif;font-size:2.8rem;font-weight:800;line-height:1}
+.stat-lbl{font-size:.75rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.stat-users{display:flex;flex-wrap:wrap;gap:10px}
+.stat-user-chip{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+  border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:7px;
+}
+.stat-user-chip .su-name{font-size:.8rem;font-weight:700;color:#fff}
+.stat-user-chip .su-cnt{
+  background:var(--sky);color:#fff;border-radius:10px;
+  padding:1px 7px;font-family:'DM Mono',monospace;font-size:.72rem;font-weight:700;
+}
+
+/* ── FILTER BAR ── */
+.filter-bar{
+  background:var(--surface);border-radius:var(--radius);padding:14px 18px;
+  display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;
+  border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;
+}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fl{font-size:.66rem;font-weight:700;color:var(--text-mut);text-transform:uppercase;letter-spacing:.08em}
+.fc{
+  padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface2);color:var(--text);font-family:'Nunito',sans-serif;
+  font-size:.86rem;outline:none;transition:all .2s;min-width:130px;
+}
+.fc:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(37,99,235,.1);background:#fff}
+.search-wrap{display:flex;align-items:flex-end;gap:0}
+.search-input{
+  padding:8px 12px;border:1.5px solid var(--border);border-right:none;
+  border-radius:var(--radius-sm) 0 0 var(--radius-sm);font-family:'Nunito',sans-serif;
+  font-size:.86rem;outline:none;min-width:200px;transition:all .2s;background:var(--surface2);
+}
+.search-input:focus{border-color:var(--sky);background:#fff}
+.search-btn{
+  padding:8px 14px;background:var(--sky);color:#fff;border:none;
+  border-radius:0 var(--radius-sm) var(--radius-sm) 0;cursor:pointer;font-size:.9rem;
+  transition:background .2s;
+}
+.search-btn:hover{background:#1d4ed8}
+.btn-apply{
+  padding:8px 18px;background:var(--sky);color:#fff;border:none;
+  border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-weight:700;
+  font-size:.84rem;cursor:pointer;align-self:flex-end;
+  box-shadow:0 2px 8px rgba(37,99,235,.22);transition:all .2s;
+}
+.btn-apply:hover{background:#1d4ed8;transform:translateY(-1px)}
+.btn-reset{
+  padding:8px 14px;background:transparent;color:var(--text-dim);align-self:flex-end;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+  font-size:.83rem;transition:all .2s;
+}
+.btn-reset:hover{border-color:var(--rose);color:var(--rose)}
+.btn-add{
+  padding:9px 22px;background:linear-gradient(135deg,var(--green),#047857);
+  color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;
+  font-weight:700;font-size:.9rem;cursor:pointer;align-self:flex-end;
+  box-shadow:0 2px 10px rgba(5,150,105,.3);transition:all .2s;
+  display:flex;align-items:center;gap:7px;
+}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(5,150,105,.4)}
+
+/* ── DATA TABLE ── */
+.tbl-card{
+  background:var(--surface);border-radius:var(--radius);
+  border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;
+}
+.tbl-toolbar{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.tbl-info{font-size:.8rem;color:var(--text-mut)}
+.tbl-info strong{color:var(--navy);font-family:'DM Mono',monospace}
+.tbl-scroll{overflow-x:auto;max-height:calc(100vh - 380px)}
+table.data-tbl{width:100%;border-collapse:collapse;font-size:.83rem}
+table.data-tbl thead th{
+  padding:11px 14px;background:var(--surface2);border-bottom:2px solid var(--border);
+  font-size:.68rem;font-weight:700;color:var(--text-mut);text-transform:uppercase;
+  letter-spacing:.07em;white-space:nowrap;position:sticky;top:0;z-index:10;
+  cursor:pointer;user-select:none;transition:background .15s;
+}
+table.data-tbl thead th:hover{background:#eef2ff}
+table.data-tbl thead th.sort-asc::after{content:' ↑'}
+table.data-tbl thead th.sort-desc::after{content:' ↓'}
+table.data-tbl tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+table.data-tbl tbody tr:hover{background:#f8faff}
+table.data-tbl tbody tr.today-row{background:#f0fdf4}
+table.data-tbl td{padding:10px 14px;vertical-align:middle;color:var(--text)}
+table.data-tbl td.mono{font-family:'DM Mono',monospace;font-size:.78rem}
+.badge{
+  display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+  font-size:.7rem;font-weight:700;white-space:nowrap;
+}
+.badge-green {background:var(--green-lt); color:#065f46}
+.badge-amber {background:var(--amber-lt); color:#92400e}
+.badge-rose  {background:var(--rose-lt);  color:#9f1239}
+.badge-sky   {background:var(--sky-lt);   color:#1e40af}
+.badge-gray  {background:#f1f5f9;          color:#475569}
+.tat-reached    {color:var(--green);font-weight:700;font-size:.78rem}
+.tat-not-reached{color:var(--rose);font-weight:700;font-size:.78rem}
+.tat-progress   {color:var(--amber);font-weight:700;font-size:.78rem}
+.action-btn{
+  padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+  font-size:.75rem;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:600;
+  transition:all .15s;background:var(--surface2);color:var(--text-dim);
+}
+.action-btn:hover{border-color:var(--sky);color:var(--sky);background:var(--sky-lt)}
+.action-btn.del:hover{border-color:var(--rose);color:var(--rose);background:var(--rose-lt)}
+.action-btn.edit{margin-right:4px}
+
+/* ── PAGINATION ── */
+.pagination{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;border-top:1px solid var(--border);background:var(--surface2);
+}
+.page-btns{display:flex;gap:6px}
+.page-btn{
+  padding:5px 12px;border:1.5px solid var(--border);border-radius:7px;
+  background:var(--surface);font-size:.8rem;cursor:pointer;transition:all .15s;font-family:'DM Mono',monospace;
+}
+.page-btn:hover,.page-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ══════════════════════════════════════
+   MODAL (Add / Edit)
+══════════════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,35,69,.55);z-index:500;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{
+  background:#fff;border-radius:20px;width:100%;max-width:760px;max-height:90vh;
+  overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 24px 80px rgba(0,0,0,.3);
+  transform:translateY(20px);transition:transform .25s;
+}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-header{
+  padding:20px 28px;background:linear-gradient(135deg,var(--navy),var(--navy2));
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.modal-title{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;color:#fff;
+  display:flex;align-items:center;gap:9px}
+.modal-close{
+  width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1);color:#fff;font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.modal-close:hover{background:rgba(255,255,255,.2)}
+.modal-body{padding:24px 28px;overflow-y:auto;flex:1}
+.modal-footer{
+  padding:16px 28px;border-top:1px solid var(--border);background:var(--surface2);
+  display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;
+}
+
+/* ── FORM GRID ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid .span2{grid-column:1/-1}
+.mfg{display:flex;flex-direction:column;gap:5px}
+.mfl{font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em}
+.mfl .req{color:var(--rose)}
+.mfi,.mfs,.mft{
+  padding:10px 13px;border:2px solid var(--border);border-radius:var(--radius-sm);
+  font-family:'Nunito',sans-serif;font-size:.9rem;color:var(--text);background:var(--surface2);
+  outline:none;transition:all .2s;width:100%;
+}
+.mfi:focus,.mfs:focus,.mft:focus{
+  border-color:var(--sky);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1)
+}
+.mfi[readonly]{background:#f8fafc;color:var(--text-mut);cursor:default}
+.mfi.auto-filled{background:var(--green-lt);color:#065f46;font-weight:600}
+.field-hint{font-size:.7rem;color:var(--text-mut);margin-top:3px}
+.field-err{font-size:.7rem;color:var(--rose);margin-top:3px;display:none}
+.mfg.has-error .mfi,.mfg.has-error .mfs{border-color:var(--rose)}
+.mfg.has-error .field-err{display:block}
+
+/* Lookup result popup */
+.lookup-wrap{position:relative}
+.lookup-result{
+  background:var(--green-lt);border:1.5px solid var(--green);
+  border-radius:var(--radius-sm);padding:8px 12px;font-size:.85rem;color:#065f46;
+  font-weight:700;margin-top:6px;display:none;align-items:center;gap:8px;
+}
+.lookup-result.show{display:flex}
+.lookup-result .lr-label{font-weight:400;color:var(--text-mut);font-size:.72rem}
+
+/* TAT warning */
+.tat-warning{
+  background:var(--amber-lt);border:2px solid #fbbf24;border-radius:var(--radius-sm);
+  padding:12px 16px;font-size:.84rem;color:#92400e;margin-top:8px;
+  display:none;align-items:center;gap:9px;
+}
+.tat-warning.show{display:flex}
+
+/* Save buttons */
+.btn-save{
+  padding:10px 28px;background:linear-gradient(135deg,var(--sky),var(--teal));
+  color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;
+  font-weight:700;font-size:.9rem;cursor:pointer;
+  box-shadow:0 2px 10px rgba(37,99,235,.25);transition:all .2s;
+}
+.btn-save:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(37,99,235,.35)}
+.btn-save:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.btn-cancel{
+  padding:10px 22px;background:transparent;border:2px solid var(--border);
+  color:var(--text-dim);border-radius:var(--radius-sm);font-family:'Nunito',sans-serif;
+  font-size:.9rem;cursor:pointer;transition:all .2s;
+}
+.btn-cancel:hover{border-color:var(--rose);color:var(--rose)}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  padding:12px 18px;border-radius:10px;font-size:.86rem;background:var(--navy);
+  color:#fff;min-width:240px;max-width:380px;display:flex;align-items:center;gap:10px;
+  box-shadow:var(--shadow-lg);animation:tslide .3s ease;pointer-events:auto;
+}
+.toast.success{background:#064e3b;border-left:4px solid var(--green)}
+.toast.error  {background:#7f1d1d;border-left:4px solid var(--rose)}
+.toast.info   {background:var(--navy2);border-left:4px solid var(--sky)}
+@keyframes tslide{from{transform:translateX(30px);opacity:0}}
+
+/* ── LOADING / EMPTY ── */
+.loading{text-align:center;padding:60px 20px;color:var(--text-mut)}
+.spinner{
+  width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--sky);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:60px 20px}
+.empty-icon{font-size:3rem;margin-bottom:12px}
+.empty-text{font-size:1rem;font-weight:700;color:var(--text-dim)}
+.empty-sub{font-size:.84rem;color:var(--text-mut);margin-top:6px}
+
+/* ── ADMIN: USER MANAGEMENT ── */
+.um-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.um-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;box-shadow:var(--shadow);transition:all .2s;
+}
+.um-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.um-name{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:4px}
+.um-email{font-size:.78rem;color:var(--text-mut)}
+.um-meta{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.role-badge{
+  padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:700;
+}
+.role-admin   {background:#ede9fe;color:#4c1d95}
+.role-supervisor{background:var(--sky-lt);color:#1e40af}
+.role-clerk   {background:var(--green-lt);color:#065f46}
+.role-viewer  {background:#f1f5f9;color:#475569}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .form-grid{grid-template-columns:1fr}
+  .stat-users{display:none}
+  .tbl-scroll{max-height:400px}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     CONFIG — REPLACE WITH YOUR SUPABASE KEYS
+══════════════════════════════════════════ -->
+<script>
+// ⚠️ REPLACE THESE WITH YOUR ACTUAL SUPABASE KEYS
+// Found in: Supabase Dashboard → Project Settings → API
+const SUPABASE_URL  = 'https://dszhwwhxzsqzqojwslxj.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzemh3d2h4enNxenFvandzbHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNDQyMTYsImV4cCI6MjA4NzYyMDIxNn0.REqyAtm3rs_L9v6VDjtD8qd4a4cIdGsiorIjEoaFjas';
+</script>
+
+<!-- ══════════════════════════════════════════
+     LOGIN PAGE
+══════════════════════════════════════════ -->
+<div id="login-page" class="page active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🚛</div>
+      <div class="login-title">Invensis LVS</div>
+      <div class="login-sub">Logistics Verification System · Sign In</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" id="login-email" class="form-input" placeholder="you@invensis.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="login-pwd" class="form-input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+<div id="app-page" class="page">
+
+  <!-- TOP NAV -->
+  <nav class="top-nav">
+    <div class="nav-brand">
+      <div class="nav-ic">🚛</div>
+      <div>
+        <div class="nav-title">Invensis LVS</div>
+        <div class="nav-sub">Logistics Verification System</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div id="et-clock" style="font-family:'DM Mono',monospace;font-size:.75rem;color:#93c5fd"></div>
+      <div class="nav-user" onclick="toggleProfile()">
+        <div class="nav-avatar" id="nav-avatar">?</div>
+        <div>
+          <div class="nav-name" id="nav-name">Loading…</div>
+          <div class="nav-role" id="nav-role">—</div>
+        </div>
+      </div>
+      <button class="nav-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="main-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">Main</div>
+      <div class="sidebar-item active" id="nav-dashboard" onclick="showPanel('dashboard')">
+        <span class="si-icon">📊</span> Dashboard
+      </div>
+      <div class="sidebar-item" id="nav-records" onclick="showPanel('records')">
+        <span class="si-icon">📋</span> LVS Records
+        <span class="sidebar-badge" id="badge-tat">0</span>
+      </div>
+      <div class="sidebar-section">Admin</div>
+      <div class="sidebar-item" id="nav-users" onclick="showPanel('users')">
+        <span class="si-icon">👥</span> User Management
+      </div>
+      <div class="sidebar-item" id="nav-clients" onclick="showPanel('clients')">
+        <span class="si-icon">🏢</span> Client Database
+      </div>
+      <div class="sidebar-item" id="nav-sync" onclick="showPanel('sync')">
+        <span class="si-icon">🔄</span> Sheets Sync
+      </div>
+      <div class="sidebar-item" id="nav-audit" onclick="showPanel('audit')">
+        <span class="si-icon">🔍</span> Audit Log
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="content-area">
+
+      <!-- ─────────────── DASHBOARD PANEL ─────────────── -->
+      <div id="panel-dashboard">
+        <div class="panel-header">
+          <div class="panel-title">Today's Operations</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.78rem;color:var(--text-mut)" id="dash-date"></div>
+        </div>
+        <!-- Today stat banner -->
+        <div class="stat-banner" id="stat-banner">
+          <div class="stat-main">
+            <div class="stat-icon">📦</div>
+            <div>
+              <div class="stat-val" id="today-count">—</div>
+              <div class="stat-lbl">Shipments Processed Today</div>
+            </div>
+          </div>
+          <div class="stat-users" id="user-chips"></div>
+        </div>
+        <!-- KPI row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-mini blue">
+            <div class="km-ic">📦</div>
+            <div class="km-val" id="kpi-total">—</div>
+            <div class="km-lbl">Total Records</div>
+          </div>
+          <div class="kpi-mini green">
+            <div class="km-ic">✅</div>
+            <div class="km-val" id="kpi-completed">—</div>
+            <div class="km-lbl">Completed</div>
+          </div>
+          <div class="kpi-mini amber">
+            <div class="km-ic">⏳</div>
+            <div class="km-val" id="kpi-hold">—</div>
+            <div class="km-lbl">On Hold</div>
+          </div>
+          <div class="kpi-mini rose">
+            <div class="km-ic">⚠️</div>
+            <div class="km-val" id="kpi-tat-miss">—</div>
+            <div class="km-lbl">TAT Not Reached</div>
+          </div>
+        </div>
+        <!-- User breakdown table -->
+        <div class="tbl-card">
+          <div class="tbl-toolbar">
+            <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--navy)">👤 User-wise Count Today</span>
+          </div>
+          <div id="user-breakdown">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────── RECORDS PANEL ─────────────── -->
+      <div id="panel-records" style="display:none">
+        <div class="panel-header">
+          <div class="panel-title">LVS Records</div>
+          <button class="btn-add" onclick="openModal(null)">＋ Add New Record</button>
+        </div>
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <div class="fg">
+            <span class="fl">📅 Start Date</span>
+            <input type="date" id="f-start" class="fc">
+          </div>
+          <div class="fg">
+            <span class="fl">📅 End Date</span>
+            <input type="date" id="f-end" class="fc">
+          </div>
+          <div class="fg">
+            <span class="fl">👥 Team</span>
+            <select id="f-team" class="fc">
+              <option value="">All Teams</option>
+            </select>
+          </div>
+          <div class="fg">
+            <span class="fl">👤 User</span>
+            <select id="f-user" class="fc">
+              <option value="">All Users</option>
+            </select>
+          </div>
+          <div class="fg">
+            <span class="fl">📌 Status</span>
+            <select id="f-status" class="fc">
+              <option value="">All Status</option>
+              <option>Completed</option>
+              <option>Hold</option>
+              <option>Submit to CARM</option>
+            </select>
+          </div>
+          <div class="fg">
+            <span class="fl">🔍 Search</span>
+            <div class="search-wrap">
+              <input type="text" id="f-search" class="search-input" placeholder="Transaction / Client…" onkeydown="if(e.key==='Enter')loadRecords()">
+              <button class="search-btn" onclick="loadRecords()">🔍</button>
+            </div>
+          </div>
+          <button class="btn-apply" onclick="loadRecords()">⚡ Apply</button>
+          <button class="btn-reset" onclick="resetFilters()">Reset</button>
+        </div>
+        <!-- Table -->
+        <div class="tbl-card">
+          <div class="tbl-toolbar">
+            <span class="tbl-info">Showing <strong id="rec-count">…</strong> records</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn-reset" onclick="exportCSV()" style="font-size:.78rem">⬇ Export CSV</button>
+            </div>
+          </div>
+          <div class="tbl-scroll">
+            <table class="data-tbl" id="records-tbl">
+              <thead>
+                <tr>
+                  <th onclick="sortBy('transaction_no')">Transaction</th>
+                  <th onclick="sortBy('release_date')">Release Date</th>
+                  <th onclick="sortBy('start_time')">Start Time</th>
+                  <th onclick="sortBy('client_number')">Client#</th>
+                  <th onclick="sortBy('client_name')">Client Name</th>
+                  <th onclick="sortBy('team')">Team</th>
+                  <th>IRS Notes</th>
+                  <th onclick="sortBy('lines')">Lines</th>
+                  <th onclick="sortBy('type')">Type</th>
+                  <th onclick="sortBy('status')">Status</th>
+                  <th onclick="sortBy('user_name')">User</th>
+                  <th onclick="sortBy('submitted_date')">Submitted</th>
+                  <th>Duration</th>
+                  <th>TAT</th>
+                  <th>Comments</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="records-body">
+                <tr><td colspan="16"><div class="loading"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span class="tbl-info">Page <strong id="pg-current">1</strong> of <strong id="pg-total">1</strong></span>
+            <div class="page-btns" id="page-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────── USERS PANEL ─────────────── -->
+      <div id="panel-users" style="display:none">
+        <div class="panel-header">
+          <div class="panel-title">User Management</div>
+          <button class="btn-add" onclick="openUserModal(null)">＋ Add User</button>
+        </div>
+        <div class="um-grid" id="users-grid">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- ─────────────── CLIENTS PANEL ─────────────── -->
+      <div id="panel-clients" style="display:none">
+        <div class="panel-header">
+          <div class="panel-title">Client Database</div>
+          <button class="btn-add" onclick="openClientModal(null)">＋ Add Client</button>
+        </div>
+        <div class="filter-bar">
+          <div class="fg">
+            <span class="fl">🔍 Search Client</span>
+            <div class="search-wrap">
+              <input type="text" id="c-search" class="search-input" placeholder="Client name or number…">
+              <button class="search-btn" onclick="loadClients()">🔍</button>
+            </div>
+          </div>
+          <button class="btn-apply" onclick="loadClients()">Apply</button>
+        </div>
+        <div class="tbl-card">
+          <div class="tbl-scroll">
+            <table class="data-tbl" id="clients-tbl">
+              <thead>
+                <tr><th>Client#</th><th>Client Name</th><th>Team</th><th>Active</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="clients-body"><tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────── SYNC PANEL ─────────────── -->
+      <div id="panel-sync" style="display:none">
+        <div class="panel-header"><div class="panel-title">Google Sheets Sync</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px">
+          <div class="tbl-card" style="padding:24px;text-align:center">
+            <div style="font-size:2.5rem;margin-bottom:12px">⬆️</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--navy);margin-bottom:8px">Push to Google Sheets</div>
+            <div style="font-size:.84rem;color:var(--text-mut);margin-bottom:18px">Send all unsynced Supabase records to your Google Sheet</div>
+            <button class="btn-save" onclick="syncToSheets()">Push to Sheets</button>
+          </div>
+          <div class="tbl-card" style="padding:24px;text-align:center">
+            <div style="font-size:2.5rem;margin-bottom:12px">⬇️</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--navy);margin-bottom:8px">Pull from Google Sheets</div>
+            <div style="font-size:.84rem;color:var(--text-mut);margin-bottom:18px">Import existing records from Google Sheets into Supabase</div>
+            <button class="btn-save" onclick="pullFromSheets()">Pull from Sheets</button>
+          </div>
+        </div>
+        <div class="tbl-card">
+          <div class="tbl-toolbar">
+            <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--navy)">📋 Sync History</span>
+          </div>
+          <div class="tbl-scroll">
+            <table class="data-tbl" id="sync-tbl">
+              <thead><tr><th>Date/Time</th><th>Type</th><th>Status</th><th>Rows</th><th>Message</th></tr></thead>
+              <tbody id="sync-body"><tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────── AUDIT PANEL ─────────────── -->
+      <div id="panel-audit" style="display:none">
+        <div class="panel-header"><div class="panel-title">Audit Log</div></div>
+        <div class="tbl-card">
+          <div class="tbl-scroll">
+            <table class="data-tbl" id="audit-tbl">
+              <thead><tr><th>Time (ET)</th><th>Action</th><th>Record ID</th><th>Changed By</th><th>Details</th></tr></thead>
+              <tbody id="audit-body"><tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     LVS RECORD MODAL (Add / Edit)
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="record-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span id="modal-icon">➕</span>
+        <span id="modal-title-text">New LVS Record</span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+
+        <!-- Transaction -->
+        <div class="mfg" id="fg-transaction">
+          <label class="mfl">Transaction No <span class="req">*</span></label>
+          <input type="number" id="f-transaction" class="mfi"
+            placeholder="8-digit (starts with 4,6,7,8)"
+            oninput="validateTransaction()" min="40000000" max="89999999">
+          <div class="field-hint">Must be 8 digits starting with 4, 6, 7, or 8</div>
+          <div class="field-err" id="err-transaction">Invalid transaction number</div>
+        </div>
+
+        <!-- Release Date -->
+        <div class="mfg">
+          <label class="mfl">Release Date <span class="req">*</span></label>
+          <input type="text" id="f-release-date" class="mfi"
+            placeholder="Copy from source file (MM/DD/YYYY)">
+          <div class="field-hint">Paste directly from source document</div>
+        </div>
+
+        <!-- Client Number -->
+        <div class="mfg" id="fg-client">
+          <label class="mfl">Client Number <span class="req">*</span></label>
+          <div class="lookup-wrap">
+            <input type="number" id="f-client-no" class="mfi"
+              placeholder="3–6 digit number"
+              oninput="lookupClient()" min="100" max="999999">
+            <div class="lookup-result" id="client-lookup">
+              <span>✅</span>
+              <div>
+                <div class="lr-label">Client Name</div>
+                <div id="lr-client-name" style="font-weight:700"></div>
+              </div>
+              <div style="margin-left:12px">
+                <div class="lr-label">Team</div>
+                <div id="lr-team" style="font-weight:700"></div>
+              </div>
+            </div>
+          </div>
+          <div class="field-err" id="err-client">Client not found in database</div>
+        </div>
+
+        <!-- Client Name (auto) -->
+        <div class="mfg">
+          <label class="mfl">Client Name</label>
+          <input type="text" id="f-client-name" class="mfi auto-filled" readonly
+            placeholder="Auto-filled from lookup">
+        </div>
+
+        <!-- Team (auto) -->
+        <div class="mfg">
+          <label class="mfl">Team</label>
+          <input type="text" id="f-team-field" class="mfi auto-filled" readonly
+            placeholder="Auto-filled from lookup">
+        </div>
+
+        <!-- IRS Notes -->
+        <div class="mfg">
+          <label class="mfl">IRS Notes</label>
+          <input type="text" id="f-irs" class="mfi" value="Followed"
+            placeholder="IRS Notes">
+        </div>
+
+        <!-- Lines -->
+        <div class="mfg">
+          <label class="mfl">Lines <span class="req">*</span></label>
+          <input type="number" id="f-lines" class="mfi" placeholder="Number of lines" min="0">
+        </div>
+
+        <!-- Type -->
+        <div class="mfg">
+          <label class="mfl">Type <span class="req">*</span></label>
+          <select id="f-type" class="mfs">
+            <option value="">-- Select Type --</option>
+            <option>Type A</option>
+            <option>Type B</option>
+            <option>Type C</option>
+            <option>Type D</option>
+          </select>
+        </div>
+
+        <!-- Status -->
+        <div class="mfg">
+          <label class="mfl">Status <span class="req">*</span></label>
+          <select id="f-status-field" class="mfs" onchange="checkTatWarning()">
+            <option value="">-- Select Status --</option>
+            <option>Completed</option>
+            <option>Hold</option>
+            <option>Submit to CARM</option>
+          </select>
+        </div>
+
+        <!-- User Name -->
+        <div class="mfg" id="fg-username">
+          <label class="mfl">User Name <span class="req">*</span></label>
+          <select id="f-username" class="mfs" onchange="onUserSelected()">
+            <option value="">-- Select User --</option>
+          </select>
+          <div class="field-hint">Selecting user will set Submitted Date automatically</div>
+        </div>
+
+        <!-- Start Time (auto) -->
+        <div class="mfg">
+          <label class="mfl">Start Time (ET)</label>
+          <input type="text" id="f-start-time" class="mfi auto-filled" readonly
+            placeholder="Auto-set on record creation">
+        </div>
+
+        <!-- Submitted Date (auto) -->
+        <div class="mfg">
+          <label class="mfl">Submitted Date (ET)</label>
+          <input type="text" id="f-submitted" class="mfi auto-filled" readonly
+            placeholder="Auto-set when User Name selected">
+        </div>
+
+        <!-- Duration (auto) -->
+        <div class="mfg">
+          <label class="mfl">Duration</label>
+          <input type="text" id="f-duration" class="mfi auto-filled" readonly
+            placeholder="Auto-calculated">
+        </div>
+
+        <!-- Comments (full width) -->
+        <div class="mfg span2">
+          <label class="mfl">Comments</label>
+          <textarea id="f-comments" class="mft" rows="3"
+            placeholder="Enter any additional comments here…"
+            style="resize:vertical"></textarea>
+          <!-- TAT warning -->
+          <div class="tat-warning" id="tat-warning">
+            ⚠️ <strong>TAT Not Reached:</strong> This release date is from a previous month and the 24th deadline has passed. Please update the comments to explain the delay.
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="modal-save-btn" onclick="saveRecord()">
+        💾 Save Record
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><span>👤</span> <span id="um-title">Add User</span></div>
+      <button class="modal-close" onclick="closeUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="mfg">
+          <label class="mfl">Full Name <span class="req">*</span></label>
+          <input type="text" id="um-name" class="mfi" placeholder="Full Name">
+        </div>
+        <div class="mfg">
+          <label class="mfl">Email <span class="req">*</span></label>
+          <input type="email" id="um-email" class="mfi" placeholder="email@invensis.com">
+        </div>
+        <div class="mfg">
+          <label class="mfl">Password <span class="req">*</span></label>
+          <input type="password" id="um-pass" class="mfi" placeholder="Minimum 8 characters">
+          <div class="field-hint">Only required when creating a new user</div>
+        </div>
+        <div class="mfg">
+          <label class="mfl">Role <span class="req">*</span></label>
+          <select id="um-role" class="mfs">
+            <option value="clerk">Clerk</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Admin</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+        <div class="mfg">
+          <label class="mfl">Team</label>
+          <input type="text" id="um-team" class="mfi" placeholder="Team A / B / C…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeUserModal()">Cancel</button>
+      <button class="btn-save" onclick="saveUser()">💾 Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT MODAL -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title"><span>🏢</span> <span id="cm-title">Add Client</span></div>
+      <button class="modal-close" onclick="closeClientModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="mfg">
+          <label class="mfl">Client Number <span class="req">*</span></label>
+          <input type="number" id="cm-no" class="mfi" placeholder="3–6 digits">
+        </div>
+        <div class="mfg">
+          <label class="mfl">Client Name <span class="req">*</span></label>
+          <input type="text" id="cm-name" class="mfi" placeholder="Client Name">
+        </div>
+        <div class="mfg">
+          <label class="mfl">Team <span class="req">*</span></label>
+          <input type="text" id="cm-team" class="mfi" placeholder="Team A / B / C…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeClientModal()">Cancel</button>
+      <button class="btn-save" onclick="saveClient()">💾 Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- KPI MINI styles -->
+<style>
+.kpi-mini{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.kpi-mini.blue .km-ic{color:var(--sky)}.kpi-mini.green .km-ic{color:var(--green)}
+.kpi-mini.amber .km-ic{color:var(--amber)}.kpi-mini.rose .km-ic{color:var(--rose)}
+.km-ic{font-size:1.3rem}.km-val{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;color:var(--navy)}
+.km-lbl{font-size:.7rem;color:var(--text-mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+</style>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  SUPABASE CLIENT INIT
+// ══════════════════════════════════════════════════════════
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── App State ──────────────────────────────────────────
+let currentUser    = null;
+let currentProfile = null;
+let editingId      = null;   // UUID of record being edited
+let currentPage    = 1;
+const PAGE_SIZE    = 50;
+let sortCol        = 'submitted_date';
+let sortDir        = 'desc';
+let clientCache    = {};     // client_number → {name, team}
+let usersCache     = [];     // all active users
+let lookupTimer    = null;
+
+// ══════════════════════════════════════════════════════════
+//  EASTERN TIME HELPERS
+// ══════════════════════════════════════════════════════════
+function nowET() {
+  return new Date().toLocaleString('en-CA', { timeZone:'America/Toronto' });
+}
+
+function formatET(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleString('en-CA', {
+    timeZone:'America/Toronto',
+    day:'2-digit', month:'2-digit', year:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit',
+    hour12:false
+  }).replace(',','');
+}
+
+function toETISO() {
+  // Returns current moment as ISO for saving
+  return new Date().toISOString();
+}
+
+function startETClock() {
+  function tick() {
+    const d = new Date();
+    const et = d.toLocaleString('en-CA', {
+      timeZone:'America/Toronto',
+      weekday:'short', month:'short', day:'numeric',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+    });
+    document.getElementById('et-clock').textContent = '🕐 ET: ' + et;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-err');
+  if (!email || !pwd) { showLoginErr('Please enter email and password.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  err.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if (error) {
+    showLoginErr(error.message);
+    btn.disabled = false;
+    btn.textContent = 'Sign In →';
+    return;
+  }
+  currentUser = data.user;
+  await loadProfile();
+  showApp();
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('user_details')
+    .select('*').eq('auth_id', currentUser.id).single();
+  currentProfile = data;
+  // Nav
+  const initials = (data?.full_name || currentUser.email).slice(0,2).toUpperCase();
+  document.getElementById('nav-avatar').textContent = initials;
+  document.getElementById('nav-name').textContent   = data?.full_name || currentUser.email;
+  document.getElementById('nav-role').textContent   = data?.role || 'user';
+  // Hide admin panel if not admin/supervisor
+  if (data?.role === 'clerk' || data?.role === 'viewer') {
+    ['nav-users','nav-clients','nav-audit'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfile = null;
+  showPage('login-page');
+}
+
+function showApp() {
+  showPage('app-page');
+  startETClock();
+  initDashboard();
+  loadFilterOptions();
+  showPanel('dashboard');
+  document.getElementById('dash-date').textContent =
+    new Date().toLocaleDateString('en-CA', { timeZone:'America/Toronto',
+      weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+
+// ── Check session on load ──────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadProfile();
+    showApp();
+  }
+  document.getElementById('login-pwd').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+//  PAGE / PANEL NAVIGATION
+// ══════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showPanel(name) {
+  ['dashboard','records','users','clients','sync','audit'].forEach(p => {
+    document.getElementById('panel-'+p).style.display = (p === name) ? '' : 'none';
+    const nav = document.getElementById('nav-'+p);
+    if (nav) nav.classList.toggle('active', p === name);
+  });
+  if (name === 'records') loadRecords();
+  if (name === 'users')   loadUsers();
+  if (name === 'clients') loadClients();
+  if (name === 'sync')    loadSyncLog();
+  if (name === 'audit')   loadAuditLog();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════
+async function initDashboard() {
+  // Today's date in ET
+  const todayET = new Date().toLocaleDateString('en-CA', { timeZone:'America/Toronto' });
+
+  // 1. Today count
+  const { data: todayRows, count: todayCount } = await sb
+    .from('lvs_records')
+    .select('id, user_name, team', { count: 'exact' })
+    .eq('is_deleted', false)
+    .gte('submitted_date', todayET + 'T00:00:00')
+    .lte('submitted_date', todayET + 'T23:59:59');
+
+  document.getElementById('today-count').textContent = todayCount || 0;
+
+  // User chips
+  const userCounts = {};
+  (todayRows || []).forEach(r => {
+    if (r.user_name) userCounts[r.user_name] = (userCounts[r.user_name]||0) + 1;
+  });
+  document.getElementById('user-chips').innerHTML =
+    Object.entries(userCounts).sort((a,b)=>b[1]-a[1]).map(([u,c])=>`
+      <div class="stat-user-chip">
+        <span class="su-name">${esc(u)}</span>
+        <span class="su-cnt">${c}</span>
+      </div>`).join('');
+
+  // 2. Total records
+  const { count: totalCount } = await sb.from('lvs_records')
+    .select('id',{count:'exact',head:true}).eq('is_deleted',false);
+  document.getElementById('kpi-total').textContent = fmtNum(totalCount||0);
+
+  // 3. Status counts
+  const { data: statusData } = await sb.from('lvs_records')
+    .select('status').eq('is_deleted',false);
+  const sc = {};
+  (statusData||[]).forEach(r=>{ sc[r.status]=(sc[r.status]||0)+1; });
+  document.getElementById('kpi-completed').textContent = fmtNum(sc['Completed']||0);
+  document.getElementById('kpi-hold').textContent      = fmtNum(sc['Hold']||0);
+
+  // 4. TAT Not Reached badge
+  const { count: tatMiss } = await sb.from('lvs_records')
+    .select('id',{count:'exact',head:true})
+    .eq('is_deleted',false).eq('tat_status','Not Reached');
+  document.getElementById('kpi-tat-miss').textContent = fmtNum(tatMiss||0);
+  document.getElementById('badge-tat').textContent    = tatMiss||0;
+
+  // 5. User breakdown table
+  const rows = Object.entries(userCounts).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('user-breakdown').innerHTML = rows.length ? `
+    <table class="data-tbl" style="font-size:.85rem">
+      <thead><tr><th>User</th><th>Today Count</th><th>% of Today</th></tr></thead>
+      <tbody>${rows.map(([u,c])=>`
+        <tr>
+          <td><strong>${esc(u)}</strong></td>
+          <td class="mono">${c}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:100px;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+                <div style="width:${((c/(todayCount||1))*100).toFixed(0)}%;height:100%;background:var(--sky);border-radius:4px"></div>
+              </div>
+              <span class="mono">${((c/(todayCount||1))*100).toFixed(1)}%</span>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` :
+    `<div class="empty-state"><div class="empty-icon">☀️</div><div class="empty-text">No records today yet</div><div class="empty-sub">Start adding LVS records</div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  RECORDS — LOAD & RENDER
+// ══════════════════════════════════════════════════════════
+async function loadFilterOptions() {
+  // Populate team and user dropdowns in filter bar
+  const { data: users } = await sb.from('user_details').select('full_name,team').eq('is_active',true).order('full_name');
+  usersCache = users || [];
+  const teams = [...new Set((users||[]).map(u=>u.team).filter(Boolean))].sort();
+  const teamSel = document.getElementById('f-team');
+  teamSel.innerHTML = '<option value="">All Teams</option>' +
+    teams.map(t=>`<option>${esc(t)}</option>`).join('');
+  const userSel = document.getElementById('f-user');
+  userSel.innerHTML = '<option value="">All Users</option>' +
+    (users||[]).map(u=>`<option>${esc(u.full_name)}</option>`).join('');
+  // Also populate modal user dropdown
+  const modalUser = document.getElementById('f-username');
+  modalUser.innerHTML = '<option value="">-- Select User --</option>' +
+    (users||[]).map(u=>`<option>${esc(u.full_name)}</option>`).join('');
+}
+
+async function loadRecords() {
+  const tbody = document.getElementById('records-body');
+  tbody.innerHTML = `<tr><td colspan="16"><div class="loading"><div class="spinner"></div></div></td></tr>`;
+
+  const start   = document.getElementById('f-start').value;
+  const end     = document.getElementById('f-end').value;
+  const team    = document.getElementById('f-team').value;
+  const user    = document.getElementById('f-user').value;
+  const status  = document.getElementById('f-status').value;
+  const search  = document.getElementById('f-search').value.trim();
+
+  let q = sb.from('lvs_records').select('*', { count:'exact' })
+    .eq('is_deleted', false)
+    .order(sortCol, { ascending: sortDir === 'asc' })
+    .range((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE - 1);
+
+  if (start) q = q.gte('submitted_date', start + 'T00:00:00');
+  if (end)   q = q.lte('submitted_date', end   + 'T23:59:59');
+  if (team)  q = q.eq('team', team);
+  if (user)  q = q.eq('user_name', user);
+  if (status)q = q.eq('status', status);
+  if (search) {
+    const num = parseInt(search);
+    if (!isNaN(num)) q = q.eq('transaction_no', num);
+    else q = q.ilike('client_name', '%'+search+'%');
+  }
+
+  const { data, count, error } = await q;
+  if (error) { toast('Load error: '+error.message,'error'); return; }
+
+  document.getElementById('rec-count').textContent = count || 0;
+  const totalPages = Math.max(1, Math.ceil((count||0)/PAGE_SIZE));
+  document.getElementById('pg-current').textContent = currentPage;
+  document.getElementById('pg-total').textContent   = totalPages;
+  renderPageBtns(totalPages);
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="16"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No records found</div></div></td></tr>`;
+    return;
+  }
+
+  const todayET = new Date().toLocaleDateString('en-CA', {timeZone:'America/Toronto'});
+  tbody.innerHTML = data.map(r => {
+    const subDate = r.submitted_date ? r.submitted_date.slice(0,10) : '';
+    const isToday = subDate === todayET;
+    const tat = computeTAT(r.release_date, r.submitted_date);
+    const tatHtml = tat === 'Reached' ? `<span class="tat-reached">✅ Reached</span>` :
+                    tat === 'Not Reached' ? `<span class="tat-not-reached">⛔ Not Reached</span>` :
+                    tat === 'In Progress' ? `<span class="tat-progress">⏳ In Progress</span>` : '—';
+    const statusBadge = {
+      'Completed':    'badge-green',
+      'Hold':         'badge-amber',
+      'Submit to CARM':'badge-sky'
+    }[r.status] || 'badge-gray';
+    const canEdit = currentProfile?.role === 'admin' || currentProfile?.role === 'supervisor'
+                    || r.user_name === currentProfile?.full_name;
+    return `<tr class="${isToday?'today-row':''}">
+      <td class="mono">${r.transaction_no}</td>
+      <td>${esc(r.release_date||'—')}</td>
+      <td class="mono" style="white-space:nowrap">${formatET(r.start_time)}</td>
+      <td class="mono">${r.client_number||'—'}</td>
+      <td>${esc(r.client_name||'—')}</td>
+      <td><span class="badge badge-sky">${esc(r.team||'—')}</span></td>
+      <td style="font-size:.78rem">${esc(r.irs_notes||'—')}</td>
+      <td class="mono">${r.lines??'—'}</td>
+      <td><span class="badge badge-gray">${esc(r.type||'—')}</span></td>
+      <td><span class="badge ${statusBadge}">${esc(r.status||'—')}</span></td>
+      <td>${esc(r.user_name||'—')}</td>
+      <td class="mono" style="white-space:nowrap">${formatET(r.submitted_date)}</td>
+      <td class="mono">${fmtDuration(r.duration_minutes)}</td>
+      <td>${tatHtml}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem" title="${esc(r.comments||'')}">${esc(r.comments||'—')}</td>
+      <td style="white-space:nowrap">
+        ${canEdit ? `<button class="action-btn edit" onclick="openModal('${r.id}')">✏️ Edit</button>` : ''}
+        ${currentProfile?.role==='admin' ? `<button class="action-btn del" onclick="deleteRecord('${r.id}')">🗑</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function resetFilters() {
+  ['f-start','f-end','f-search'].forEach(id=>document.getElementById(id).value='');
+  ['f-team','f-user','f-status'].forEach(id=>document.getElementById(id).value='');
+  currentPage = 1;
+  loadRecords();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir = sortDir==='asc'?'desc':'asc';
+  else { sortCol = col; sortDir = 'desc'; }
+  document.querySelectorAll('.data-tbl thead th').forEach(th=>th.classList.remove('sort-asc','sort-desc'));
+  loadRecords();
+}
+
+function renderPageBtns(total) {
+  const wrap = document.getElementById('page-btns');
+  let html = `<button class="page-btn" onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+  for (let i=1;i<=Math.min(total,10);i++) {
+    html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="changePage(${i})">${i}</button>`;
+  }
+  html += `<button class="page-btn" onclick="changePage(${currentPage+1})" ${currentPage>=total?'disabled':''}>›</button>`;
+  wrap.innerHTML = html;
+}
+
+function changePage(p) {
+  const total = parseInt(document.getElementById('pg-total').textContent);
+  if (p<1||p>total) return;
+  currentPage = p;
+  loadRecords();
+}
+
+// ══════════════════════════════════════════════════════════
+//  RECORD MODAL — ADD / EDIT
+// ══════════════════════════════════════════════════════════
+async function openModal(id) {
+  editingId = id;
+  document.getElementById('modal-icon').textContent      = id ? '✏️' : '➕';
+  document.getElementById('modal-title-text').textContent= id ? 'Edit LVS Record' : 'New LVS Record';
+  clearForm();
+
+  if (id) {
+    const { data } = await sb.from('lvs_records').select('*').eq('id',id).single();
+    if (!data) { toast('Record not found','error'); return; }
+    document.getElementById('f-transaction').value  = data.transaction_no;
+    document.getElementById('f-release-date').value = data.release_date  || '';
+    document.getElementById('f-client-no').value    = data.client_number || '';
+    document.getElementById('f-client-name').value  = data.client_name   || '';
+    document.getElementById('f-team-field').value   = data.team          || '';
+    document.getElementById('f-irs').value           = data.irs_notes     || 'Followed';
+    document.getElementById('f-lines').value         = data.lines         ?? '';
+    document.getElementById('f-type').value          = data.type          || '';
+    document.getElementById('f-status-field').value  = data.status        || '';
+    document.getElementById('f-username').value      = data.user_name     || '';
+    document.getElementById('f-start-time').value    = formatET(data.start_time);
+    document.getElementById('f-submitted').value     = formatET(data.submitted_date);
+    document.getElementById('f-duration').value      = fmtDuration(data.duration_minutes);
+    document.getElementById('f-comments').value      = data.comments || '';
+    if (data.client_number && data.client_name) showLookupResult(data.client_name, data.team);
+    checkTatWarning();
+  } else {
+    // Auto-set start time
+    document.getElementById('f-start-time').value = formatET(new Date().toISOString());
+  }
+
+  document.getElementById('record-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('record-modal').classList.remove('open');
+  editingId = null;
+}
+
+function clearForm() {
+  ['f-transaction','f-release-date','f-client-no','f-client-name','f-team-field',
+   'f-lines','f-comments','f-submitted','f-duration'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f-irs').value          = 'Followed';
+  document.getElementById('f-type').value         = '';
+  document.getElementById('f-status-field').value  = '';
+  document.getElementById('f-username').value     = '';
+  document.getElementById('client-lookup').classList.remove('show');
+  document.getElementById('tat-warning').classList.remove('show');
+  document.querySelectorAll('.mfg.has-error').forEach(g=>g.classList.remove('has-error'));
+}
+
+// ── Client Lookup ──────────────────────────────────────
+async function lookupClient() {
+  const val = document.getElementById('f-client-no').value.trim();
+  if (!val || val.length < 3) {
+    document.getElementById('client-lookup').classList.remove('show');
+    document.getElementById('f-client-name').value = '';
+    document.getElementById('f-team-field').value  = '';
+    return;
+  }
+  clearTimeout(lookupTimer);
+  lookupTimer = setTimeout(async () => {
+    const num = parseInt(val);
+    // Check cache first
+    if (clientCache[num]) {
+      showLookupResult(clientCache[num].name, clientCache[num].team);
+      return;
+    }
+    const { data } = await sb.from('client_db')
+      .select('client_name,team').eq('client_number',num).eq('active',true).single();
+    if (data) {
+      clientCache[num] = { name: data.client_name, team: data.team };
+      showLookupResult(data.client_name, data.team);
+      document.getElementById('fg-client').classList.remove('has-error');
+    } else {
+      document.getElementById('client-lookup').classList.remove('show');
+      document.getElementById('f-client-name').value = '';
+      document.getElementById('f-team-field').value  = '';
+      document.getElementById('fg-client').classList.add('has-error');
+    }
+  }, 400);
+}
+
+function showLookupResult(name, team) {
+  document.getElementById('lr-client-name').textContent = name;
+  document.getElementById('lr-team').textContent        = team;
+  document.getElementById('f-client-name').value        = name;
+  document.getElementById('f-team-field').value         = team;
+  document.getElementById('client-lookup').classList.add('show');
+}
+
+// ── User selected → set submitted date ────────────────
+function onUserSelected() {
+  const user = document.getElementById('f-username').value;
+  if (user && !editingId) {
+    const now = new Date().toISOString();
+    document.getElementById('f-submitted').value = formatET(now);
+    // Calc duration
+    const startStr = document.getElementById('f-start-time').value;
+    if (startStr) {
+      // parse start time from display back to approximate minutes
+      document.getElementById('f-duration').value = 'Calculating…';
+    }
+  }
+  checkTatWarning();
+}
+
+// ── TAT Warning ────────────────────────────────────────
+function checkTatWarning() {
+  const rd     = document.getElementById('f-release-date').value;
+  const status = document.getElementById('f-status-field').value;
+  const nowD   = new Date();
+  const nowET  = new Date(nowD.toLocaleString('en-US',{timeZone:'America/Toronto'}));
+  const tat    = computeTAT(rd, nowD.toISOString());
+  const warn   = document.getElementById('tat-warning');
+  if (tat === 'Not Reached') warn.classList.add('show');
+  else warn.classList.remove('show');
+}
+
+// ── Transaction Validation ─────────────────────────────
+function validateTransaction() {
+  const val  = document.getElementById('f-transaction').value;
+  const num  = parseInt(val);
+  const fg   = document.getElementById('fg-transaction');
+  const valid = val.length === 8 && [4,6,7,8].includes(Math.floor(num/10000000));
+  fg.classList.toggle('has-error', !!val && !valid);
+}
+
+// ── Save Record ────────────────────────────────────────
+async function saveRecord() {
+  const btn = document.getElementById('modal-save-btn');
+  // Validate
+  const transVal = document.getElementById('f-transaction').value;
+  const transNum = parseInt(transVal);
+  if (!transVal || transVal.length !== 8 || ![4,6,7,8].includes(Math.floor(transNum/10000000))) {
+    toast('Invalid transaction number — must be 8 digits starting with 4,6,7,8','error'); return;
+  }
+  const clientNo = parseInt(document.getElementById('f-client-no').value);
+  if (!clientNo || String(clientNo).length < 3 || String(clientNo).length > 6) {
+    toast('Client number must be 3–6 digits','error'); return;
+  }
+  const username = document.getElementById('f-username').value;
+  if (!username) { toast('Please select a User Name','error'); return; }
+  if (!document.getElementById('f-type').value) { toast('Please select a Type','error'); return; }
+  if (!document.getElementById('f-status-field').value) { toast('Please select a Status','error'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+
+  const clientName = document.getElementById('f-client-name').value;
+  const team       = document.getElementById('f-team-field').value;
+  const now        = new Date().toISOString();
+
+  // For edit: use existing start time, for new: set now
+  let startTime = now;
+  if (editingId) {
+    const { data: existing } = await sb.from('lvs_records').select('start_time').eq('id',editingId).single();
+    startTime = existing?.start_time || now;
+  }
+
+  // Submitted date: now when user is selected (for new), or keep existing (for edit)
+  let submittedDate = username ? now : null;
+
+  const tat = computeTAT(document.getElementById('f-release-date').value, submittedDate);
+
+  const payload = {
+    transaction_no: transNum,
+    release_date:   document.getElementById('f-release-date').value.trim() || null,
+    start_time:     startTime,
+    client_number:  clientNo,
+    client_name:    clientName,
+    team:           team,
+    irs_notes:      document.getElementById('f-irs').value.trim() || 'Followed',
+    lines:          parseInt(document.getElementById('f-lines').value) || 0,
+    type:           document.getElementById('f-type').value,
+    status:         document.getElementById('f-status-field').value,
+    user_name:      username,
+    submitted_date: submittedDate,
+    tat_status:     tat,
+    comments:       document.getElementById('f-comments').value.trim() || null,
+    updated_by:     currentProfile?.id || null,
+    synced_to_sheets: false
+  };
+
+  let error;
+  if (editingId) {
+    ({ error } = await sb.from('lvs_records').update(payload).eq('id', editingId));
+  } else {
+    payload.created_by = currentProfile?.id || null;
+    ({ error } = await sb.from('lvs_records').insert(payload));
+  }
+
+  btn.disabled = false; btn.textContent = '💾 Save Record';
+
+  if (error) { toast('Save failed: '+error.message,'error'); return; }
+  toast(editingId ? 'Record updated ✅' : 'Record created ✅', 'success');
+  closeModal();
+  loadRecords();
+  initDashboard();
+}
+
+// ══════════════════════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════════════════════
+async function deleteRecord(id) {
+  if (!confirm('Soft-delete this record? It will no longer appear in the list.')) return;
+  const { error } = await sb.from('lvs_records')
+    .update({ is_deleted: true, updated_by: currentProfile?.id })
+    .eq('id', id);
+  if (error) { toast('Delete failed: '+error.message,'error'); return; }
+  toast('Record deleted','info');
+  loadRecords(); initDashboard();
+}
+
+// ══════════════════════════════════════════════════════════
+//  USER MANAGEMENT
+// ══════════════════════════════════════════════════════════
+async function loadUsers() {
+  const grid = document.getElementById('users-grid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const { data } = await sb.from('user_details').select('*').order('full_name');
+  if (!data?.length) { grid.innerHTML='<div class="empty-state"><div class="empty-text">No users yet</div></div>'; return; }
+  grid.innerHTML = data.map(u=>`
+    <div class="um-card">
+      <div class="um-name">${esc(u.full_name)}</div>
+      <div class="um-email">${esc(u.email)}</div>
+      <div class="um-meta">
+        <span class="role-badge role-${u.role}">${u.role}</span>
+        ${u.team?`<span class="badge badge-sky">${esc(u.team)}</span>`:''}
+        <span class="badge ${u.is_active?'badge-green':'badge-gray'}">${u.is_active?'Active':'Inactive'}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="action-btn" onclick="openUserModal('${u.id}')">✏️ Edit</button>
+        <button class="action-btn del" onclick="toggleUserActive('${u.id}',${!u.is_active})">${u.is_active?'Deactivate':'Activate'}</button>
+      </div>
+    </div>`).join('');
+}
+
+let editingUserId = null;
+function openUserModal(id) {
+  editingUserId = id;
+  document.getElementById('um-title').textContent = id ? 'Edit User' : 'Add User';
+  if (!id) {
+    ['um-name','um-email','um-pass','um-team'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('um-role').value='clerk';
+  }
+  document.getElementById('user-modal').classList.add('open');
+}
+function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); }
+
+async function saveUser() {
+  const name  = document.getElementById('um-name').value.trim();
+  const email = document.getElementById('um-email').value.trim();
+  const pass  = document.getElementById('um-pass').value;
+  const role  = document.getElementById('um-role').value;
+  const team  = document.getElementById('um-team').value.trim();
+  if (!name||!email) { toast('Name and email are required','error'); return; }
+
+  if (!editingUserId) {
+    if (!pass || pass.length < 8) { toast('Password must be at least 8 characters','error'); return; }
+    // Create auth user via admin (requires service role key for production)
+    // For now, insert into user_details only
+    const { error } = await sb.from('user_details').insert({ full_name:name, email, role, team });
+    if (error) { toast('Error: '+error.message,'error'); return; }
+    toast('User added. They must sign up via the login page with this email.','info');
+  } else {
+    const { error } = await sb.from('user_details')
+      .update({ full_name:name, email, role, team }).eq('id',editingUserId);
+    if (error) { toast('Error: '+error.message,'error'); return; }
+    toast('User updated ✅','success');
+  }
+  closeUserModal(); loadUsers(); loadFilterOptions();
+}
+
+async function toggleUserActive(id, val) {
+  await sb.from('user_details').update({is_active:val}).eq('id',id);
+  toast(val?'User activated':'User deactivated','info');
+  loadUsers();
+}
+
+// ══════════════════════════════════════════════════════════
+//  CLIENT DATABASE
+// ══════════════════════════════════════════════════════════
+async function loadClients() {
+  const search = document.getElementById('c-search').value.trim();
+  let q = sb.from('client_db').select('*').order('client_number');
+  if (search) q = q.or(`client_name.ilike.%${search}%,client_number.eq.${parseInt(search)||0}`);
+  const { data } = await q;
+  const tbody = document.getElementById('clients-body');
+  if (!data?.length) { tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-text">No clients found</div></div></td></tr>'; return; }
+  tbody.innerHTML = data.map(c=>`<tr>
+    <td class="mono">${c.client_number}</td>
+    <td><strong>${esc(c.client_name)}</strong></td>
+    <td><span class="badge badge-sky">${esc(c.team)}</span></td>
+    <td><span class="badge ${c.active?'badge-green':'badge-gray'}">${c.active?'Active':'Inactive'}</span></td>
+    <td>
+      <button class="action-btn edit" onclick="openClientModal(${c.id})">✏️</button>
+      <button class="action-btn del" onclick="toggleClient(${c.id},${!c.active})">${c.active?'Deactivate':'Activate'}</button>
+    </td>
+  </tr>`).join('');
+}
+
+let editingClientId = null;
+function openClientModal(id) {
+  editingClientId = id;
+  document.getElementById('cm-title').textContent = id ? 'Edit Client' : 'Add Client';
+  if (!id) ['cm-no','cm-name','cm-team'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('client-modal').classList.add('open');
+}
+function closeClientModal() { document.getElementById('client-modal').classList.remove('open'); }
+
+async function saveClient() {
+  const no   = parseInt(document.getElementById('cm-no').value);
+  const name = document.getElementById('cm-name').value.trim();
+  const team = document.getElementById('cm-team').value.trim();
+  if (!no || String(no).length<3 || String(no).length>6) { toast('Invalid client number','error'); return; }
+  if (!name||!team) { toast('Name and team are required','error'); return; }
+  if (!editingClientId) {
+    const { error } = await sb.from('client_db').insert({client_number:no,client_name:name,team});
+    if (error) { toast('Error: '+error.message,'error'); return; }
+  } else {
+    const { error } = await sb.from('client_db').update({client_name:name,team}).eq('id',editingClientId);
+    if (error) { toast('Error: '+error.message,'error'); return; }
+  }
+  clientCache = {};  // clear cache
+  toast('Client saved ✅','success');
+  closeClientModal(); loadClients();
+}
+
+async function toggleClient(id, val) {
+  await sb.from('client_db').update({active:val}).eq('id',id);
+  clientCache = {};
+  toast(val?'Client activated':'Client deactivated','info');
+  loadClients();
+}
+
+// ══════════════════════════════════════════════════════════
+//  SHEETS SYNC PANEL
+// ══════════════════════════════════════════════════════════
+async function loadSyncLog() {
+  const { data } = await sb.from('sheets_sync_log').select('*').order('synced_at',{ascending:false}).limit(20);
+  const tbody = document.getElementById('sync-body');
+  if (!data?.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-mut)">No sync history yet</td></tr>'; return; }
+  tbody.innerHTML = data.map(s=>`<tr>
+    <td class="mono">${formatET(s.synced_at)}</td>
+    <td><span class="badge badge-sky">${esc(s.sync_type)}</span></td>
+    <td><span class="badge ${s.status==='success'?'badge-green':'badge-rose'}">${esc(s.status)}</span></td>
+    <td class="mono">${s.rows_synced}</td>
+    <td style="font-size:.78rem">${esc(s.message||'—')}</td>
+  </tr>`).join('');
+}
+
+async function syncToSheets() {
+  toast('Triggering Google Sheets sync… (see Sheets Sync script)','info');
+  // Actual sync is done by the Apps Script webhook — see lvs_sheets_sync.gs
+  await sb.from('sheets_sync_log').insert({sync_type:'push',status:'triggered',message:'Manual push triggered from app'});
+  loadSyncLog();
+}
+
+async function pullFromSheets() {
+  toast('Pull triggered. Run the Apps Script pull function to import.','info');
+  await sb.from('sheets_sync_log').insert({sync_type:'pull',status:'triggered',message:'Manual pull triggered from app'});
+  loadSyncLog();
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUDIT LOG
+// ══════════════════════════════════════════════════════════
+async function loadAuditLog() {
+  const { data } = await sb.from('audit_log').select('*').order('changed_at',{ascending:false}).limit(50);
+  const tbody = document.getElementById('audit-body');
+  if (!data?.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-mut)">No audit entries</td></tr>'; return; }
+  const badgeMap = { INSERT:'badge-green', UPDATE:'badge-sky', DELETE:'badge-rose' };
+  tbody.innerHTML = data.map(a=>`<tr>
+    <td class="mono">${formatET(a.changed_at)}</td>
+    <td><span class="badge ${badgeMap[a.action]||'badge-gray'}">${a.action}</span></td>
+    <td class="mono" style="font-size:.72rem">${(a.record_id||'').slice(0,8)}…</td>
+    <td>${esc(a.changed_by||'system')}</td>
+    <td style="font-size:.72rem;color:var(--text-mut)">
+      ${a.action==='UPDATE'&&a.new_data?'→ '+esc(a.new_data.status||''):''}
+    </td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  TAT CALCULATION (frontend mirror of SQL function)
+// ══════════════════════════════════════════════════════════
+function computeTAT(releaseDate, submittedDate) {
+  if (!releaseDate || !submittedDate) return null;
+  let rd;
+  try { rd = new Date(releaseDate); if (isNaN(rd)) return null; }
+  catch { return null; }
+  const sd = new Date(submittedDate);
+  const sdET = new Date(sd.toLocaleString('en-US',{timeZone:'America/Toronto'}));
+  const submitMonth = sdET.getMonth() + 1;
+  const submitYear  = sdET.getFullYear();
+  const submitDay   = sdET.getDate();
+  const relMonth    = rd.getMonth() + 1;
+  const relYear     = rd.getFullYear();
+  const isPrevMonth = (submitYear === relYear && submitMonth === relMonth + 1) ||
+                      (relMonth === 12 && submitMonth === 1 && submitYear === relYear + 1);
+  const isSameMonth = submitMonth === relMonth && submitYear === relYear;
+  if (isPrevMonth) return submitDay < 24 ? 'Reached' : 'Not Reached';
+  if (isSameMonth) return 'In Progress';
+  return 'Not Reached';
+}
+
+// ══════════════════════════════════════════════════════════
+//  EXPORT CSV
+// ══════════════════════════════════════════════════════════
+async function exportCSV() {
+  const { data } = await sb.from('lvs_records').select('*').eq('is_deleted',false).order('submitted_date',{ascending:false}).limit(5000);
+  if (!data?.length) { toast('No data to export','info'); return; }
+  const cols = ['transaction_no','release_date','start_time','client_number','client_name','team','irs_notes','lines','type','status','user_name','submitted_date','duration_minutes','tat_status','comments'];
+  const hdr  = cols.join(',');
+  const rows = data.map(r=>cols.map(c=>`"${String(r[c]??'').replace(/"/g,'""')}"`).join(','));
+  const csv  = [hdr,...rows].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'),{href:url,download:'lvs_records.csv'});
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exported','success');
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════
+function esc(s) {
+  if (s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtNum(n) { return Number(n).toLocaleString(); }
+function fmtDuration(mins) {
+  if (mins == null) return '—';
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+let _toastTimer = {};
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span>${{success:'✅',error:'❌',info:'ℹ️'}[type]||'ℹ️'}</span><span>${esc(msg)}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 4500);
+}
+</script>
+</body>
+</html>
